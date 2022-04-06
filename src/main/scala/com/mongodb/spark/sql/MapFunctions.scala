@@ -16,8 +16,9 @@
 
 package com.mongodb.spark.sql
 
-import java.sql.{Date, Timestamp}
+import com.mongodb.spark.Logging
 
+import java.sql.{Date, Timestamp}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import org.apache.spark.sql.Row
@@ -27,8 +28,9 @@ import org.bson._
 import org.bson.types.Decimal128
 import com.mongodb.spark.exceptions.MongoTypeConversionException
 import com.mongodb.spark.sql.types.BsonCompatibility
+import org.apache.commons.lang
 
-private[spark] object MapFunctions {
+private[spark] object MapFunctions extends Logging {
 
   // scalastyle:off cyclomatic.complexity null
   def documentToRow(bsonDocument: BsonDocument, schema: StructType, requiredColumns: Array[String] = Array.empty[String]): Row = {
@@ -80,9 +82,12 @@ private[spark] object MapFunctions {
   private def wrappedDataTypeToBsonValueMapper(elementType: DataType, nullable: Boolean, extendedBsonTypes: Boolean): (Any) => BsonValue = {
     element =>
       Try(dataTypeToBsonValueMapper(elementType, nullable, extendedBsonTypes)(element)) match {
-        case Success(bsonValue)                        => bsonValue
-        case Failure(ex: MongoTypeConversionException) => throw ex
-        case Failure(e)                                => throw new MongoTypeConversionException(s"Cannot cast $element into a $elementType")
+        case Success(bsonValue) => bsonValue
+        case Failure(ex: MongoTypeConversionException) => {
+          log.warn(ex.getMessage)
+          null
+        }
+        case Failure(e) => throw new MongoTypeConversionException(s"Cannot cast $element into a $elementType")
       }
   }
 
@@ -274,6 +279,7 @@ private[spark] object MapFunctions {
       case BsonType.INT32      => bsonValue.asInt32().intValue()
       case BsonType.INT64      => bsonValue.asInt64().intValue()
       case BsonType.DOUBLE     => bsonValue.asDouble().intValue()
+      case BsonType.STRING     => if (lang.StringUtils.isNumeric(bsonValue.asString().getValue)) bsonValue.asString().getValue.toInt else null
       case _                   => throw new MongoTypeConversionException(s"Cannot cast ${bsonValue.getBsonType} into a Int")
     }
   }

@@ -59,13 +59,13 @@ object Publish {
       try props.load(input) finally input.close()
       val gradleProperties = if (props.stringPropertyNames().contains(keyPassword)) {
         Seq(
-          PgpSettings.pgpPassphrase := Some(props.getProperty(keyPassword).toArray),
-          PgpSettings.pgpSecretRing := file(props.getProperty(secretKeyRing)),
-          credentials += Credentials(
-            "Sonatype Nexus Repository Manager",
-            "oss.sonatype.org",
-            props.getProperty(username),
-            props.getProperty(password)),
+//          PgpSettings.pgpPassphrase := Some(props.getProperty(keyPassword).toArray),
+//          PgpSettings.pgpSecretRing := file(props.getProperty(secretKeyRing)),
+//          credentials += Credentials(
+//            "Sonatype Nexus Repository Manager",
+//            "oss.sonatype.org",
+//            props.getProperty(username),
+//            props.getProperty(password)),
           publishSnapshot := publishSnapshotTask.value,
           publishArchives := publishArchivesTask.value
         )
@@ -86,29 +86,20 @@ object Publish {
   ) ++ addArtifact(artifact in (Compile, assembly), assembly).settings
 
   lazy val mavenSettings = Seq(
+    useGpg := true,
+    credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+
     publishTo := {
-      val nexus = "https://oss.sonatype.org/"
+      val nexus = "https://maven.idiaoyan.cn/"
       if (isSnapshot.value) {
-        Some("snapshots" at nexus + "content/repositories/snapshots")
+        Some("snapshots" at nexus + "repository/maven-snapshots")
       } else {
-        Some("releases" at nexus + "service/local/staging/deploy/maven2")
+        Some("releases" at nexus + "repository/maven-release/")
       }
     },
     publishMavenStyle := true,
     publishArtifact in Test := false,
-    pomIncludeRepository := { _ => false },
-    pomExtra :=
-      <url>http://github.com/mongo-spark</url>
-      <scm>
-        <url>git@github.com:mongodb/mongo-spark.git</url>
-        <connection>scm:git:git@github.com:mongodb/mongo-spark.git</connection>
-      </scm>
-      <developers>
-        <developer>
-          <name>Various</name>
-          <organization>MongoDB</organization>
-        </developer>
-      </developers>
+    pomIncludeRepository := { _ => false }
   )
 
   lazy val noPublishing = Seq(
